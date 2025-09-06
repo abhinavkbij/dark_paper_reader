@@ -1,0 +1,88 @@
+# Docker Compose for PDF2HTML Infrastructure
+version: '3.8'
+
+services:
+  # Redis for job status and caching
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+  # RabbitMQ for message queue
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: pdf2html
+      RABBITMQ_DEFAULT_PASS: pdf2html123
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+  # MinIO as S3-compatible object storage
+  minio:
+    image: minio/minio:latest
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: pdf2html
+      MINIO_ROOT_PASSWORD: pdf2HTML@123
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+
+  # API Gateway (Nginx)
+  api-gateway:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - orchestrator
+
+  # Conversion Orchestrator Service
+  orchestrator:
+    build:
+      context: ./services/orchestrator
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - RABBITMQ_URL=amqp://pdf2html:pdf2html123@rabbitmq:5672
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=pdf2html
+      - MINIO_SECRET_KEY=pdf2HTML@123
+    depends_on:
+      - redis
+      - rabbitmq
+      - minio
+
+  # Text Conversion Worker
+  text-worker:
+    build:
+      context: ./services/text-worker
+      dockerfile: Dockerfile
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - RABBITMQ_URL=amqp://pdf2html:pdf2html123@rabbitmq:5672
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=pdf2html
+      - MINIO_SECRET_KEY=pdf2HTML@123
+    depends_on:
+      - redis
+      - rabbitmq
+      - minio
+    deploy:
+      replicas: 2
+
+volumes:
+  redis_data:
+  rabbitmq_data:
+  minio_data:

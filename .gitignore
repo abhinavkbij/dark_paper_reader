@@ -300,3 +300,7 @@ cython_debug/
 # markdown files
 **/*.md
 !README.md
+
+# ds_store
+.DS_Store
+**/._DS_Store

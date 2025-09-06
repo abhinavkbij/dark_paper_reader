@@ -14,6 +14,15 @@ const convertMarkdownToHTML = (markdown) => {
     // Handle other LaTeX math expressions
     cleanedText = cleanedText.replace(/\$([^$]+)\$/g, '$1');
 
+    // NEW: Handle superscripts like ^0 or footnotes like [^0]
+    cleanedText = cleanedText.replace(/(\^|\[\^)(.*?)(?:\]|\b)/g, '<sup>$2</sup>');
+
+    // NEW: Handle links like "1 http://example.com"
+    cleanedText = cleanedText.replace(
+        /(\b\d+\s+)(https?:\/\/[^\s]+)/g,
+        '<a href="$2" target="_blank">$2</a>'
+    );
+
     // Handle tables first
     const lines = cleanedText.split('\n');
     const processedLines = [];

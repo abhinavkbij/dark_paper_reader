@@ -1,11 +1,11 @@
 {
   "files": {
     "main.css": "/dark_paper_reader/static/css/main.06f2ab06.css",
-    "main.js": "/dark_paper_reader/static/js/main.cc1f007d.js",
+    "main.js": "/dark_paper_reader/static/js/main.497d798c.js",
     "index.html": "/dark_paper_reader/index.html"
   },
   "entrypoints": [
     "static/css/main.06f2ab06.css",
-    "static/js/main.cc1f007d.js"
+    "static/js/main.497d798c.js"
   ]
 }

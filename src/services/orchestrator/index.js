@@ -1,4 +1,5 @@
 // services/orchestrator/index.js
+require('dotenv').config({ path: require('path').resolve(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
 const {v4: uuidv4} = require('uuid');
@@ -14,6 +15,13 @@ const {getSignedUrl} = require('@aws-sdk/s3-request-presigner');
 const multer = require('multer');
 const axios = require('axios');
 const Minio = require('minio');
+
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+
+let nodemailer;
+try { nodemailer = require('nodemailer'); } catch { nodemailer = null; console.log('Nodemailer not available'); }
+
 
 const app = express();
 app.use(cors());
@@ -33,9 +41,19 @@ const config = {
         secretKey: process.env.MINIO_SECRET_KEY || 'pdf2HTML@123',
         bucket: 'pdf2html-storage'
     },
-    port: process.env.PORT || 3001
+    port: process.env.PORT || 3001,
+    jwtSecret: process.env.JWT_SECRET || require('crypto').randomBytes(32).toString('hex'),
+    appBaseUrl: process.env.APP_BASE_URL || 'http://localhost:3000', // used in emails
+    apiBaseUrl: process.env.API_BASE_URL || `http://localhost:${process.env.PORT || 3001}`, // backend URL used in emails
+    smtp: {
+        host: process.env.SMTP_HOST,
+        port: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : undefined,
+        secure: process.env.SMTP_SECURE === 'false',
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+        from: process.env.SMTP_FROM || 'tillicollapse452@gmail.com'
+    }
 };
-
 // Initialize services
 let redisClient, rabbitChannel, s3Client, minioClient;
 
@@ -166,10 +184,290 @@ function isValidUrl(url) {
     }
 }
 
+// Auth helpers
+const USERS_BY_EMAIL_KEY = (email) => `user:email:${email.toLowerCase()}`;
+const USER_KEY = (id) => `user:${id}`;
+// Add a dedicated key for token lookup
+const VERIFY_TOKEN_KEY = (token) => `verify:${token}`;
+
+
+async function findUserByEmail(email) {
+    if (!email) return null;
+    const id = await redisClient.get(USERS_BY_EMAIL_KEY(email));
+    if (!id) return null;
+    const user = await redisClient.hGetAll(USER_KEY(id));
+    return Object.keys(user).length ? user : null;
+}
+
+function signJwt(payload) {
+    return jwt.sign(payload, config.jwtSecret, { expiresIn: '7d' });
+}
+
+function authenticateToken(req, res, next) {
+    const authHeader = req.headers['authorization'];
+    if (!authHeader) return res.status(401).json({ error: 'Missing Authorization header' });
+    const token = authHeader.split(' ')[1];
+    if (!token) return res.status(401).json({ error: 'Missing token' });
+
+    jwt.verify(token, config.jwtSecret, (err, user) => {
+        if (err) return res.status(401).json({ error: 'Invalid or expired token' });
+        req.user = user;
+        next();
+    });
+}
+
+async function requireVerified(req, res, next) {
+    try {
+        const id = req.user?.sub;
+        if (!id) return res.status(401).json({ error: 'Unauthorized' });
+        const user = await redisClient.hGetAll(USER_KEY(id));
+        if (!user || !Object.keys(user).length) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+        if (String(user.verified) !== 'true') {
+            return res.status(403).json({ error: 'Email not verified' });
+        }
+        next();
+    } catch (e) {
+        console.error('requireVerified error', e);
+        return res.status(500).json({ error: 'Verification check failed' });
+    }
+}
+
+async function sendVerificationEmail(email, token) {
+    const verifyUrl = `${config.apiBaseUrl}/api/v1/auth/verify?token=${encodeURIComponent(token)}`;
+    const subject = 'Verify your email';
+    const text = `Please verify your email by opening this link:\n\n${verifyUrl}\n\nThis link expires in 24 hours.`;
+    const html = `<p>Please verify your email by clicking the link below:</p><p><a href="${verifyUrl}">Verify Email</a></p><p>This link expires in 24 hours.</p>`;
+    console.log('nodemailer', nodemailer);
+    console.log('config.smtp', config.smtp);
+    console.log('config.smtp.host', config.smtp.host);
+    console.log('config.smtp.user', config.smtp.user);
+    console.log('config.smtp.pass', config.smtp.pass);
+    // If SMTP configured and nodemailer available, send email
+    if (nodemailer && config.smtp.host && config.smtp.user && config.smtp.pass) {
+        const transporter = nodemailer.createTransport({
+            host: config.smtp.host,
+            port: config.smtp.port || 587,
+            secure: !!config.smtp.secure,
+            auth: { user: config.smtp.user, pass: config.smtp.pass }
+        });
+        await transporter.sendMail({
+            from: config.smtp.from,
+            to: email,
+            subject,
+            text,
+            html
+        });
+    } else {
+        console.log('[DEV] Verification link for', email, '=>', verifyUrl);
+    }
+}
+
+
+async function createUser({ email, password }) {
+    const existing = await findUserByEmail(email);
+    if (existing) {
+        const err = new Error('User already exists');
+        err.code = 'USER_EXISTS';
+        throw err;
+    }
+    const id = uuidv4();
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // Generate verification token and expiry for first-time registration
+    const verificationToken = uuidv4();
+    const verificationExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+
+    const user = {
+        id,
+        email: email.toLowerCase(),
+        passwordHash,
+        createdAt: new Date().toISOString(),
+        verified: 'false',
+        verificationToken,
+        verificationExpires: String(verificationExpires)
+    };
+    await redisClient.hSet(USER_KEY(id), user);
+    await redisClient.set(USERS_BY_EMAIL_KEY(email), id);
+
+    // Also index token -> userId with TTL (24h) to avoid SCAN during verification
+    const ttlSeconds = 24 * 60 * 60;
+    await redisClient.set(VERIFY_TOKEN_KEY(verificationToken), id, { EX: ttlSeconds });
+
+
+    // Send the verification email immediately on registration
+    await sendVerificationEmail(user.email, verificationToken);
+
+    return { id: user.id, email: user.email, createdAt: user.createdAt, verified: false};
+}
+
+function signJwt(payload) {
+    return jwt.sign(payload, config.jwtSecret, { expiresIn: '7d' });
+}
+
+function authenticateToken(req, res, next) {
+    const authHeader = req.headers['authorization'];
+    if (!authHeader) return res.status(401).json({ error: 'Missing Authorization header' });
+    const token = authHeader.split(' ')[1];
+    if (!token) return res.status(401).json({ error: 'Missing token' });
+
+    jwt.verify(token, config.jwtSecret, (err, user) => {
+        if (err) return res.status(401).json({ error: 'Invalid or expired token' });
+        req.user = user;
+        next();
+    });
+}
+
+
 // Routes
 
+// Auth: Register
+app.post('/api/v1/auth/register', async (req, res) => {
+    try {
+        const { email, password } = req.body || {};
+        if (!email || !password) {
+            return res.status(400).json({ error: 'Email and password are required' });
+        }
+        if (typeof email !== 'string' || typeof password !== 'string') {
+            return res.status(400).json({ error: 'Invalid payload' });
+        }
+        if (password.length < 6) {
+            return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+        }
+
+        const user = await createUser({ email, password });
+        const token = signJwt({ sub: user.id, email: user.email });
+        return res.status(201).json({ token, user });
+    } catch (err) {
+        if (err.code === 'USER_EXISTS') {
+            return res.status(409).json({ error: 'User already exists' });
+        }
+        console.error('Register error:', err);
+        return res.status(500).json({ error: 'Registration failed' });
+    }
+});
+
+// Auth: Login
+app.post('/api/v1/auth/login', async (req, res) => {
+    try {
+        const { email, password } = req.body || {};
+        if (!email || !password) {
+            return res.status(400).json({ error: 'Email and password are required' });
+        }
+        const user = await findUserByEmail(email);
+        if (!user) {
+            return res.status(401).json({ error: 'Invalid email or password' });
+        }
+        const ok = await bcrypt.compare(password, user.passwordHash);
+        if (!ok) {
+            return res.status(401).json({ error: 'Invalid email or password' });
+        }
+        const safeUser = { id: user.id, email: user.email, createdAt: user.createdAt, verified: String(user.verified) === 'true'};
+        const token = signJwt({ sub: user.id, email: user.email });
+        return res.json({ token, user: safeUser });
+    } catch (err) {
+        console.error('Login error:', err);
+        return res.status(500).json({ error: 'Login failed' });
+    }
+});
+
+// Auth: Me
+app.get('/api/v1/auth/me', authenticateToken, async (req, res) => {
+    try {
+        const id = req.user?.sub;
+        if (!id) return res.status(401).json({ error: 'Unauthorized' });
+        const user = await redisClient.hGetAll(USER_KEY(id));
+        if (!user || !Object.keys(user).length) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        const safeUser = { id: user.id, email: user.email, createdAt: user.createdAt, verified: String(user.verified) === 'true'
+        };
+        return res.json({ user: safeUser });
+    } catch (err) {
+        console.error('Me error:', err);
+        return res.status(500).json({ error: 'Failed to get user' });
+    }
+});
+
+// Auth: Verify via token
+app.get('/api/v1/auth/verify', async (req, res) => {
+    try {
+        const token = req.query.token;
+        if (!token) return res.status(400).json({ error: 'Missing token' });
+
+        // Resolve userId directly from the token index instead of scanning Redis
+        const userId = await redisClient.get(VERIFY_TOKEN_KEY(token));
+        if (!userId) {
+            return res.status(400).json({ error: 'Invalid or expired token' });
+        }
+
+
+        const userKey = USER_KEY(userId);
+        const user = await redisClient.hGetAll(userKey);
+        if (!user || !Object.keys(user).length) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        if (user.verificationToken !== token) {
+            // Token index exists but hash was rotated/changed
+            return res.status(400).json({ error: 'Invalid or expired token' });
+        }
+        if (Number(user.verificationExpires) < Date.now()) {
+            return res.status(400).json({ error: 'Token expired' });
+        }
+
+        await redisClient.hSet(userKey, {
+            verified: 'true',
+            verificationToken: '',
+            verificationExpires: '0'
+        });
+        // Invalidate the token index
+        await redisClient.del(VERIFY_TOKEN_KEY(token));
+
+
+        // Redirect back to the frontend with a success flag so the app can refresh state
+        const redirectUrl = `${config.appBaseUrl}?verified=1`;
+        return res.redirect(302, redirectUrl);
+
+    } catch (err) {
+        console.error('Verify error:', err);
+        return res.status(500).json({ error: 'Verification failed' });
+    }
+});
+
+// Auth: Resend verification
+app.post('/api/v1/auth/resend-verification', authenticateToken, async (req, res) => {
+    try {
+        const id = req.user?.sub;
+        if (!id) return res.status(401).json({ error: 'Unauthorized' });
+        const key = USER_KEY(id);
+        const user = await redisClient.hGetAll(key);
+        if (!user || !Object.keys(user).length) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        if (String(user.verified) === 'true') {
+            return res.status(400).json({ error: 'Already verified' });
+        }
+        const newToken = uuidv4();
+        const newExpiry = Date.now() + 24 * 60 * 60 * 1000;
+        await redisClient.hSet(key, { verificationToken: newToken, verificationExpires: String(newExpiry) });
+
+        // Refresh the token index with a new TTL
+        const ttlSeconds = 24 * 60 * 60;
+        await redisClient.set(VERIFY_TOKEN_KEY(newToken), id, { EX: ttlSeconds });
+
+        await sendVerificationEmail(user.email, newToken);
+        return res.json({ message: 'Verification email sent' });
+    } catch (err) {
+        console.error('Resend verification error:', err);
+        return res.status(500).json({ error: 'Failed to resend verification' });
+    }
+});
+
+
 // Get pre-signed URL for file upload
-app.post('/api/v1/upload/presigned-url', async (req, res) => {
+app.post('/api/v1/upload/presigned-url', authenticateToken
+, async (req, res) => {
     try {
         const {filename, contentType} = req.body;
 
@@ -204,7 +502,8 @@ app.post('/api/v1/upload/presigned-url', async (req, res) => {
 });
 
 // Convert uploaded PDF
-app.post('/api/v1/convert/upload', async (req, res) => {
+app.post('/api/v1/convert/upload', authenticateToken
+, async (req, res) => {
     try {
         console.log("Type of request body is: ", typeof(req.body))
         const {jobId, key, filename} = req.body;
@@ -239,7 +538,8 @@ app.post('/api/v1/convert/upload', async (req, res) => {
 });
 
 // Convert PDF from URL
-app.post('/api/v1/convert/url', async (req, res) => {
+app.post('/api/v1/convert/url', authenticateToken
+, async (req, res) => {
     try {
         const {url} = req.body;
 
@@ -280,7 +580,8 @@ app.post('/api/v1/convert/url', async (req, res) => {
 });
 
 // Get job status
-app.get('/api/v1/jobs/:jobId/status', async (req, res) => {
+app.get('/api/v1/jobs/:jobId/status', authenticateToken
+, async (req, res) => {
     try {
         const {jobId} = req.params;
 
@@ -299,7 +600,8 @@ app.get('/api/v1/jobs/:jobId/status', async (req, res) => {
 });
 
 // Get converted HTML
-app.get('/api/v1/jobs/:jobId/result', async (req, res) => {
+app.get('/api/v1/jobs/:jobId/result', authenticateToken
+, async (req, res) => {
     try {
         const {jobId} = req.params;
 
@@ -335,7 +637,8 @@ app.get('/api/v1/jobs/:jobId/result', async (req, res) => {
     }
 });
 
-app.get('/api/v1/jobs/:jobId/ocr-result', async (req, res) => {
+app.get('/api/v1/jobs/:jobId/ocr-result', authenticateToken
+, async (req, res) => {
     try {
         const {jobId} = req.params;
 
@@ -373,7 +676,8 @@ app.get('/api/v1/jobs/:jobId/ocr-result', async (req, res) => {
 });
 
 // Health check
-app.get('/health', (req, res) => {
+app.get('/health', authenticateToken
+, (req, res) => {
     res.json({status: 'healthy', timestamp: new Date().toISOString()});
 });
 

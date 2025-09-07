@@ -3,6 +3,12 @@ import { useState, useEffect, useCallback, useRef } from "react";
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || '/api/v1'; // Replace with your actual API URL
 
+// Helper to attach Authorization header from stored token
+function authHeaders() {
+    const token = localStorage.getItem('token');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export const usePdfConversion = (addNotification) => {
     const [currentJob, setCurrentJob] = useState(() => {
         const saved = localStorage.getItem('pdf2html-current-job');
@@ -64,7 +70,11 @@ export const usePdfConversion = (addNotification) => {
 
         const pollInterval = setInterval(async () => {
             try {
-                const response = await fetch(`${API_BASE_URL}/jobs/${currentJob.jobId}/status`);
+                const response = await fetch(`${API_BASE_URL}/jobs/${currentJob.jobId}/status`, {
+                    headers: {
+                        ...authHeaders(),
+                    },
+                });
                 if (!response.ok) throw new Error('Failed to fetch job status');
 
                 const updatedJob = await response.json();
@@ -109,10 +119,12 @@ export const usePdfConversion = (addNotification) => {
             addNotification('Starting upload...', 'info');
             const presignedResponse = await fetch(`${API_BASE_URL}/upload/presigned-url`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...authHeaders(),
+                },
                 body: JSON.stringify({ filename: file.name, contentType: file.type })
             });
-            // console.log("presignedResponse is: ", presignedResponse.json());
             if (!presignedResponse.ok) throw new Error((await presignedResponse.json()).error || 'Failed to get upload URL');
             const { jobId, presignedUrl, key } = await presignedResponse.json();
 
@@ -123,7 +135,10 @@ export const usePdfConversion = (addNotification) => {
             addNotification('Starting conversion...', 'info');
             const conversionResponse = await fetch(`${API_BASE_URL}/convert/upload`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...authHeaders(),
+                },
                 body: JSON.stringify({ jobId, key, filename: file.name })
             });
 
@@ -161,7 +176,10 @@ export const usePdfConversion = (addNotification) => {
             addNotification('Starting URL conversion...', 'info');
             const response = await fetch(`${API_BASE_URL}/convert/url`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...authHeaders(),
+                },
                 body: JSON.stringify({ url })
             });
 

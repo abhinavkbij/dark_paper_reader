@@ -1,8 +1,9 @@
 # services/text-worker/Dockerfile
-FROM node:18-alpine
+FROM node:24-alpine
 
 # Install dependencies for PDF.js
 RUN apk add --no-cache \
+    build-base \
     cairo-dev \
     jpeg-dev \
     pango-dev \

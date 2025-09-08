@@ -1,10 +1,12 @@
 # services/orchestrator/Dockerfile
-FROM node:18-alpine
+FROM node:24-alpine
 
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
+
+RUN apk add --no-cache build-base
 
 # Install dependencies
 RUN npm ci --only=production

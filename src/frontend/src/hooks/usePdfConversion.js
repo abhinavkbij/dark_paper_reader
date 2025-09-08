@@ -1,7 +1,7 @@
 // src/hooks/usePdfConversion.js
 import { useState, useEffect, useCallback, useRef } from "react";
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || '/api/v1'; // Replace with your actual API URL
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://ec2-13-233-141-154.ap-south-1.compute.amazonaws.com/api/v1'; // Replace with your actual API URL
 
 // Helper to attach Authorization header from stored token
 function authHeaders() {
@@ -127,9 +127,12 @@ export const usePdfConversion = (addNotification) => {
             });
             if (!presignedResponse.ok) throw new Error((await presignedResponse.json()).error || 'Failed to get upload URL');
             const { jobId, presignedUrl, key } = await presignedResponse.json();
+            console.log('Presigned URL:', presignedUrl);
+            console.log('Key:', key);
 
             addNotification('Uploading file...', 'info');
             const uploadResponse = await fetch(presignedUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+            console.log('Upload response:', uploadResponse);
             if (!uploadResponse.ok) throw new Error(`Upload failed with status ${uploadResponse.status}`);
 
             addNotification('Starting conversion...', 'info');

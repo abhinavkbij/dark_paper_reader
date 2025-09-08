@@ -1,4 +1,4 @@
-const BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001';
+const BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://ec2-13-233-141-154.ap-south-1.compute.amazonaws.com';
 
 export type User = {
     id: string;

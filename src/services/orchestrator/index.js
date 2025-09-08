@@ -36,7 +36,7 @@ const config = {
         url: process.env.RABBITMQ_URL || 'amqp://pdf2html:pdf2html123@localhost:5672'
     },
     minio: {
-	endpoint: process.env.MINIO_ENDPOINT || 'http://ec2-13-233-141-154.ap-south-1.compute.amazonaws.com:9000',
+        endpoint: process.env.MINIO_ENDPOINT || 'https://ec2-13-233-141-154.ap-south-1.compute.amazonaws.com:9000',
         accessKey: process.env.MINIO_ACCESS_KEY || 'pdf2html',
         secretKey: process.env.MINIO_SECRET_KEY || 'pdf2HTML@123',
         bucket: 'pdf2html-storage'

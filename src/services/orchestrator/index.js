@@ -36,7 +36,7 @@ const config = {
         url: process.env.RABBITMQ_URL || 'amqp://pdf2html:pdf2html123@localhost:5672'
     },
     minio: {
-        endpoint: process.env.MINIO_ENDPOINT || 'localhost:9000',
+	endpoint: process.env.MINIO_ENDPOINT || 'http://ec2-13-233-141-154.ap-south-1.compute.amazonaws.com:9000',
         accessKey: process.env.MINIO_ACCESS_KEY || 'pdf2html',
         secretKey: process.env.MINIO_SECRET_KEY || 'pdf2HTML@123',
         bucket: 'pdf2html-storage'
@@ -44,7 +44,7 @@ const config = {
     port: process.env.PORT || 3001,
     jwtSecret: process.env.JWT_SECRET || require('crypto').randomBytes(32).toString('hex'),
     appBaseUrl: process.env.APP_BASE_URL || 'http://localhost:3000', // used in emails
-    apiBaseUrl: process.env.API_BASE_URL || `http://localhost:${process.env.PORT || 3001}`, // backend URL used in emails
+    apiBaseUrl: process.env.API_BASE_URL || `http://ec2-13-233-141-154.ap-south-1.compute.amazonaws.com`, // backend URL used in emails
     smtp: {
         host: process.env.SMTP_HOST,
         port: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : undefined,
@@ -57,9 +57,15 @@ const config = {
 // Initialize services
 let redisClient, rabbitChannel, s3Client, minioClient;
 
+// Normalize MinIO endpoint (accepts "minio:9000" or "http://host:9000")
+const rawMinioEndpoint = config.minio.endpoint.replace(/^https?:\/\//, '');
+const [minioHost, minioPortStr] = rawMinioEndpoint.split(':');
+const minioPort = Number(minioPortStr) || 9000;
+
+
 // S3 Client setup (MinIO compatible)
 s3Client = new S3Client({
-    endpoint: `http://${config.minio.endpoint}`,
+    endpoint: `http://${rawMinioEndpoint}`,
     credentials: {
         accessKeyId: config.minio.accessKey,
         secretAccessKey: config.minio.secretKey,
@@ -70,8 +76,8 @@ s3Client = new S3Client({
 
 // minio local setup
 minioClient = new Minio.Client({
-    endPoint: `localhost`,
-    port: '9000',
+    endPoint: minioHost,
+    port: minioPort,
     useSSL: false,
     accessKey: config.minio.accessKey,
     secretKey: config.minio.secretKey,

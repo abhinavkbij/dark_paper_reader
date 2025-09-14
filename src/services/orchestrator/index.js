@@ -61,6 +61,9 @@ let redisClient, rabbitChannel, s3Client, minioClient;
 const rawMinioEndpoint = config.minio.endpoint.replace(/^https?:\/\//, '');
 const [minioHost, minioPortStr] = rawMinioEndpoint.split(':');
 const minioPort = Number(minioPortStr) || 9000;
+console.log('MinIO Endpoint:', rawMinioEndpoint);
+console.log('MinIO Host:', minioHost);
+console.log('MinIO Port:', minioPort);
 
 
 // S3 Client setup (MinIO compatible)

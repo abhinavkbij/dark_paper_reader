@@ -38,18 +38,25 @@ services:
 
   # API Gateway (Nginx)
   api-gateway:
-    build:
-      context: ./services/api_gateway
-      dockerfile: Dockerfile
-#    image: nginx:alpine
+    image: nginx:alpine
+#    build:
+#      context: ./services/api_gateway
+#      dockerfile: Dockerfile
     ports:
       - "80:80"
-    environment:
-      - IMAGE=nginx:alpine
+      - "443:443"  # Add HTTPS port
+#    environment:
+#      - IMAGE=nginx:alpine
     volumes:
       - ./services/api_gateway/nginx.conf:/etc/nginx/nginx.conf
+      # Mount SSL certificates as volumes
+      - /etc/letsencrypt/live/ocr.backend.bijarnia.in/fullchain.pem:/etc/letsencrypt/live/ocr.backend.bijarnia.in/fullchain.pem:ro
+      - /etc/letsencrypt/live/ocr.backend.bijarnia.in/privkey.pem:/etc/letsencrypt/live/ocr.backend.bijarnia.in/privkey.pem:ro
+      - /etc/letsencrypt/options-ssl-nginx.conf:/etc/letsencrypt/options-ssl-nginx.conf:ro
+      - /etc/letsencrypt/ssl-dhparams.pem:/etc/letsencrypt/ssl-dhparams.pem:ro
     depends_on:
       - orchestrator
+
 
   # Conversion Orchestrator Service
   orchestrator:

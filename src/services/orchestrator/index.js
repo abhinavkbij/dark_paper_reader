@@ -81,7 +81,7 @@ s3Client = new S3Client({
 minioClient = new Minio.Client({
     endPoint: minioHost,
     port: minioPort,
-    useSSL: false,
+    useSSL: true,
     accessKey: config.minio.accessKey,
     secretKey: config.minio.secretKey,
 })

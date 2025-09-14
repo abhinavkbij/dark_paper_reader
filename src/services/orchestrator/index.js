@@ -43,7 +43,7 @@ const config = {
     },
     port: process.env.PORT || 3001,
     jwtSecret: process.env.JWT_SECRET || require('crypto').randomBytes(32).toString('hex'),
-    appBaseUrl: process.env.APP_BASE_URL || 'http://localhost:3000', // used in emails
+    appBaseUrl: process.env.APP_BASE_URL || 'https://ui.darkpaperreader.bijarnia.in', // 'http://localhost:3000', // used in emails
     apiBaseUrl: process.env.API_BASE_URL || `https://darkpaperreader.bijarnia.in`, // backend URL used in emails
     smtp: {
         host: process.env.SMTP_HOST,

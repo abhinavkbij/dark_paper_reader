@@ -1,7 +1,7 @@
 {
   "name": "frontend",
   "version": "0.1.0",
-  "homepage": "https://abhinavkbij.github.io/dark_paper_reader",
+  "homepage": "https://ui.darkpaperreader.bijarnia.in/",
   "private": true,
   "dependencies": {
     "@tailwindcss/postcss": "^4.1.12",

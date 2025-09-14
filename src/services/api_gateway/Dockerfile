@@ -2,7 +2,7 @@ ARG IMAGE=nginx:alpine
 FROM $IMAGE
 LABEL authors="abhinavkbij"
 
-USER=root
+USER root
 
 # ssl_certificate
 COPY /etc/letsencrypt/live/ocr.backend.bijarnia.in/fullchain.pem /etc/letsencrypt/live/ocr.backend.bijarnia.in/fullchain.pem

@@ -68,7 +68,7 @@ services:
     environment:
       - REDIS_URL=redis://redis:6379
       - RABBITMQ_URL=amqp://pdf2html:pdf2html123@rabbitmq:5672
-      - MINIO_ENDPOINT=http://ec2-13-233-141-154.ap-south-1.compute.amazonaws.com:9000
+      - MINIO_ENDPOINT=https://darkpaperreader.bijarnia.in:9000
       - MINIO_ACCESS_KEY=pdf2html
       - MINIO_SECRET_KEY=pdf2HTML@123
       - API_BASE_URL=${API_BASE_URL}

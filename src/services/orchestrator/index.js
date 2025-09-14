@@ -68,7 +68,13 @@ console.log('MinIO Port:', minioPort);
 
 // S3 Client setup (MinIO compatible)
 s3Client = new S3Client({
-    endpoint: `https://${rawMinioEndpoint}`,
+    // endpoint: `https://${rawMinioEndpoint}`,
+    endpoint: {
+        hostname: rawMinioEndpoint.split(':'), // Extract just the hostname
+        port: Number(rawMinioEndpoint.split(':')[1]) || 443, // Extract port or default to 443
+        protocol: 'https:', // Explicitly set protocol to HTTPS
+        path: '/',
+    },
     credentials: {
         accessKeyId: config.minio.accessKey,
         secretAccessKey: config.minio.secretKey,
@@ -497,7 +503,7 @@ app.post('/api/v1/upload/presigned-url', authenticateToken
             ContentType: contentType
         });
 
-        const presignedUrl = await getSignedUrl(minioClient, command, {expiresIn: 3600});
+        const presignedUrl = await getSignedUrl(S3Client, command, {expiresIn: 3600});
 
         res.json({
             jobId,

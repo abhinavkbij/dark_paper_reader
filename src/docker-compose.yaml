@@ -56,6 +56,8 @@ services:
       - /etc/letsencrypt/live/ocr.backend.bijarnia.in/privkey.pem:/etc/letsencrypt/live/ocr.backend.bijarnia.in/privkey.pem:ro
       - /etc/letsencrypt/options-ssl-nginx.conf:/etc/letsencrypt/options-ssl-nginx.conf:ro
       - /etc/letsencrypt/ssl-dhparams.pem:/etc/letsencrypt/ssl-dhparams.pem:ro
+      - /etc/letsencrypt/live/console.darkpaperreader.bijarnia.in/fullchain.pem:/etc/letsencrypt/live/console.darkpaperreader.bijarnia.in/fullchain.pem:ro
+      - /etc/letsencrypt/live/console.darkpaperreader.bijarnia.in/privkey.pem:/etc/letsencrypt/live/console.darkpaperreader.bijarnia.in/privkey.pem:ro
     depends_on:
       - orchestrator
 

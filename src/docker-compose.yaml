@@ -38,11 +38,16 @@ services:
 
   # API Gateway (Nginx)
   api-gateway:
-    image: nginx:alpine
+    build:
+      context: ./services/api_gateway
+      dockerfile: Dockerfile
+#    image: nginx:alpine
     ports:
       - "80:80"
+    environment:
+      - IMAGE=nginx:alpine
     volumes:
-      - ./nginx_config/nginx.conf:/etc/nginx/nginx.conf
+      - ./services/api_gateway/nginx.conf:/etc/nginx/nginx.conf
     depends_on:
       - orchestrator
 

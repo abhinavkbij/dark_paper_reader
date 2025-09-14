@@ -1,4 +1,4 @@
-const BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://ec2-13-233-141-154.ap-south-1.compute.amazonaws.com';
+const BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://darkpaperreader.bijarnia.in/api/v1';
 
 export type User = {
     id: string;

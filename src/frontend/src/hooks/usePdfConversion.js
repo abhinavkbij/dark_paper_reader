@@ -1,7 +1,7 @@
 // src/hooks/usePdfConversion.js
 import { useState, useEffect, useCallback, useRef } from "react";
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://ec2-13-233-141-154.ap-south-1.compute.amazonaws.com/api/v1'; // Replace with your actual API URL
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://darkpaperreader.bijarnia.in/api/v1'; // Replace with your actual API URL
 
 // Helper to attach Authorization header from stored token
 function authHeaders() {

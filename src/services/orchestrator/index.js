@@ -84,17 +84,14 @@ s3Client = new S3Client({
 
 // minio local setup
 minioClient = new Minio.Client({
-    // endPoint: minioHost,
-    // port: minioPort,
-    // useSSL: true,
-    // accessKey: config.minio.accessKey,
-    // secretKey: config.minio.secretKey,
-    endPoint: minioHost,
-    port: Number(minioPort) || 443, // Use 443 for HTTPS
-    useSSL: true, // Change this to true
+    endPoint: 's3.darkpaperreader.bijarnia.in',
+    port: 443,
+    useSSL: true,
     accessKey: config.minio.accessKey,
     secretKey: config.minio.secretKey,
-})
+    // Add these SSL options to handle certificate issues
+    region: 'us-east-1'
+});
 
 // Job status enum
 const JobStatus = {

@@ -81,10 +81,10 @@ s3Client = new S3Client({
 minioClient = new Minio.Client({
     endPoint: minioHost,
     port: minioPort,
-    useSSL: true,
+    useSSL: false,
     accessKey: config.minio.accessKey,
     secretKey: config.minio.secretKey,
-})
+});
 
 // Job status enum
 const JobStatus = {

@@ -68,21 +68,18 @@ console.log('MinIO Port:', minioPort);
 
 // S3 Client setup (MinIO compatible)
 s3Client = new S3Client({
-    endpoint: `https://${rawMinioEndpoint}`,
-    // endpoint: {
-    //     hostname: rawMinioEndpoint.split(':'), // Extract just the hostname
-    //     port: Number(rawMinioEndpoint.split(':')[1]) || 443, // Extract port or default to 443
-    //     protocol: 'https:', // Explicitly set protocol to HTTPS
-    //     path: '/',
-    // },
+    endpoint: {
+        protocol: 'https:', // Force HTTPS
+        hostname: 's3.darkpaperreader.bijarnia.in', // Explicit hostname
+        port: 443, // HTTPS port
+        path: '/'
+    },
     credentials: {
         accessKeyId: config.minio.accessKey,
         secretAccessKey: config.minio.secretKey,
     },
     region: 'us-east-1',
     forcePathStyle: true,
-    tls: true, // Force TLS/HTTPS
-    sslEnabled: true // Ensure SSL is enabled
 });
 
 // minio local setup

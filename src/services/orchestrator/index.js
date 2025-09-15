@@ -84,8 +84,8 @@ s3Client = new S3Client({
 
 // minio local setup
 minioClient = new Minio.Client({
-    endPoint: 's3.darkpaperreader.bijarnia.in',
-    port: 443,
+    endPoint: 'minio',
+    port: 9000,
     useSSL: true,
     accessKey: config.minio.accessKey,
     secretKey: config.minio.secretKey,

@@ -68,26 +68,33 @@ console.log('MinIO Port:', minioPort);
 
 // S3 Client setup (MinIO compatible)
 s3Client = new S3Client({
-    // endpoint: `https://${rawMinioEndpoint}`,
-    endpoint: {
-        hostname: rawMinioEndpoint.split(':'), // Extract just the hostname
-        port: Number(rawMinioEndpoint.split(':')[1]) || 443, // Extract port or default to 443
-        protocol: 'https:', // Explicitly set protocol to HTTPS
-        path: '/',
-    },
+    endpoint: `https://${rawMinioEndpoint}`,
+    // endpoint: {
+    //     hostname: rawMinioEndpoint.split(':'), // Extract just the hostname
+    //     port: Number(rawMinioEndpoint.split(':')[1]) || 443, // Extract port or default to 443
+    //     protocol: 'https:', // Explicitly set protocol to HTTPS
+    //     path: '/',
+    // },
     credentials: {
         accessKeyId: config.minio.accessKey,
         secretAccessKey: config.minio.secretKey,
     },
     region: 'us-east-1',
-    forcePathStyle: true
+    forcePathStyle: true,
+    tls: true, // Force TLS/HTTPS
+    sslEnabled: true // Ensure SSL is enabled
 });
 
 // minio local setup
 minioClient = new Minio.Client({
+    // endPoint: minioHost,
+    // port: minioPort,
+    // useSSL: true,
+    // accessKey: config.minio.accessKey,
+    // secretKey: config.minio.secretKey,
     endPoint: minioHost,
-    port: minioPort,
-    useSSL: true,
+    port: Number(minioPort) || 443, // Use 443 for HTTPS
+    useSSL: true, // Change this to true
     accessKey: config.minio.accessKey,
     secretKey: config.minio.secretKey,
 })

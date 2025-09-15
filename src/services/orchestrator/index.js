@@ -503,7 +503,7 @@ app.post('/api/v1/upload/presigned-url', authenticateToken
             ContentType: contentType
         });
 
-        const presignedUrl = await getSignedUrl(S3Client, command, {expiresIn: 3600});
+        const presignedUrl = await getSignedUrl(s3Client, command, {expiresIn: 3600});
 
         res.json({
             jobId,

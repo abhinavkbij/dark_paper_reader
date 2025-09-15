@@ -68,30 +68,25 @@ console.log('MinIO Port:', minioPort);
 
 // S3 Client setup (MinIO compatible)
 s3Client = new S3Client({
-    endpoint: {
-        protocol: 'https:', // Force HTTPS
-        hostname: 's3.darkpaperreader.bijarnia.in', // Explicit hostname
-        port: 443, // HTTPS port
-        path: '/'
-    },
+    endpoint: `https://${rawMinioEndpoint}`,
     credentials: {
         accessKeyId: config.minio.accessKey,
         secretAccessKey: config.minio.secretKey,
     },
     region: 'us-east-1',
-    forcePathStyle: true,
+    forcePathStyle: true
 });
 
 // minio local setup
-minioClient = new Minio.Client({
-    endPoint: 'minio',
-    port: 9000,
-    useSSL: true,
-    accessKey: config.minio.accessKey,
-    secretKey: config.minio.secretKey,
-    // Add these SSL options to handle certificate issues
-    region: 'us-east-1'
-});
+// minioClient = new Minio.Client({
+//     endPoint: 'minio',
+//     port: 9000,
+//     useSSL: true,
+//     accessKey: config.minio.accessKey,
+//     secretKey: config.minio.secretKey,
+//     // Add these SSL options to handle certificate issues
+//     region: 'us-east-1'
+// });
 
 // Job status enum
 const JobStatus = {
@@ -504,7 +499,7 @@ app.post('/api/v1/upload/presigned-url', authenticateToken
             ContentType: contentType
         });
 
-        const presignedUrl = await getSignedUrl(minioClient, command, {expiresIn: 3600});
+        const presignedUrl = await getSignedUrl(s3Client, command, {expiresIn: 3600});
 
         // DEBUGGING - Log to see what we got
         console.log('=== PRESIGNED URL DEBUG ===');

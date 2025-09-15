@@ -315,7 +315,6 @@ async function createUser({ email, password }) {
     const ttlSeconds = 24 * 60 * 60;
     await redisClient.set(VERIFY_TOKEN_KEY(verificationToken), id, { EX: ttlSeconds });
 
-
     // Send the verification email immediately on registration
     await sendVerificationEmail(user.email, verificationToken);
 
@@ -510,19 +509,9 @@ app.post('/api/v1/upload/presigned-url', authenticateToken
 
         const presignedUrl = await getSignedUrl(s3Client, command, {expiresIn: 3600});
 
-        // DEBUGGING - Log to see what we got
-        console.log('=== PRESIGNED URL DEBUG ===');
-        console.log('Original URL:', presignedUrl);
-        console.log('URL starts with http:', presignedUrl.startsWith('http:'));
-        console.log('URL starts with https:', presignedUrl.startsWith('https:'));
-
-        const httpsPresignedUrl = presignedUrl.replace(/^http:/, 'https:');
-
-        console.log('After replacement:', httpsPresignedUrl);
-        console.log('URLs are different:', presignedUrl !== httpsPresignedUrl);
-        console.log('=== END DEBUG ===');        res.json({
+        res.json({
             jobId,
-            presignedUrl: httpsPresignedUrl,
+            presignedUrl: presignedUrl,
             key
         });
     } catch (error) {

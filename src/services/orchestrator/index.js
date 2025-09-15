@@ -78,15 +78,13 @@ s3Client = new S3Client({
 });
 
 // minio local setup
-// minioClient = new Minio.Client({
-//     endPoint: 'minio',
-//     port: 9000,
-//     useSSL: true,
-//     accessKey: config.minio.accessKey,
-//     secretKey: config.minio.secretKey,
-//     // Add these SSL options to handle certificate issues
-//     region: 'us-east-1'
-// });
+minioClient = new Minio.Client({
+    endPoint: minioHost,
+    port: minioPort,
+    useSSL: true,
+    accessKey: config.minio.accessKey,
+    secretKey: config.minio.secretKey,
+})
 
 // Job status enum
 const JobStatus = {

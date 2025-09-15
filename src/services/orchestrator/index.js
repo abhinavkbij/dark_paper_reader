@@ -509,9 +509,20 @@ app.post('/api/v1/upload/presigned-url', authenticateToken
 
         const presignedUrl = await getSignedUrl(s3Client, command, {expiresIn: 3600});
 
+        // DEBUGGING - Log to see what we got
+        console.log('=== PRESIGNED URL DEBUG ===');
+        console.log('Original URL:', presignedUrl);
+        console.log('URL starts with http:', presignedUrl.startsWith('http:'));
+        console.log('URL starts with https:', presignedUrl.startsWith('https:'));
+
+        const httpsPresignedUrl = presignedUrl.replace(/^http:/, 'https:');
+
+        console.log('After replacement:', httpsPresignedUrl);
+        console.log('URLs are different:', presignedUrl !== httpsPresignedUrl);
+        console.log('=== END DEBUG ===');
         res.json({
             jobId,
-            presignedUrl: presignedUrl,
+            presignedUrl: httpsPresignedUrl,
             key
         });
     } catch (error) {

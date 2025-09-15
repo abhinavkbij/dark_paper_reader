@@ -504,7 +504,7 @@ app.post('/api/v1/upload/presigned-url', authenticateToken
             ContentType: contentType
         });
 
-        const presignedUrl = await getSignedUrl(s3Client, command, {expiresIn: 3600});
+        const presignedUrl = await getSignedUrl(minioClient, command, {expiresIn: 3600});
 
         // DEBUGGING - Log to see what we got
         console.log('=== PRESIGNED URL DEBUG ===');

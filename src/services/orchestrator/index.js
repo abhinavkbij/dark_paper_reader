@@ -253,7 +253,8 @@ async function requireVerified(req, res, next) {
     }
 }
 
-async function sendVerificationEmail(email, token) {http://ec2-13-233-141-154.ap-south-1.compute.amazonaws.coe
+async function sendVerificationEmail(email, token) {
+    // http://ec2-13-233-141-154.ap-south-1.compute.amazonaws.coe
     const verifyUrl = `${config.apiBaseUrl}/api/v1/auth/verify?token=${encodeURIComponent(token)}`;
     const subject = 'Verify your email';
     const text = `Please verify your email by opening this link:\n\n${verifyUrl}\n\nThis link expires in 24 hours.`;
